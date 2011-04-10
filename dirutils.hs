@@ -2,7 +2,7 @@ module Main where
 
 import System.IO
 import System.Environment (getArgs)
-import System.Directory (getDirectoryContents, doesDirectoryExist)
+import System.Directory (getDirectoryContents, doesDirectoryExist, canonicalizePath)
 import System.FilePath ((</>))
 
 
@@ -20,13 +20,13 @@ createFileNode path = do
 
 createDirNode :: FilePath -> IO FileSystemNode
 createDirNode path = do
-    content <- getDirectoryContents path
-    let content2 = filter removeRelativeDirs content
-    let content3 = map (makePath path) content2
-    content4 <- mapM createFileSystemNode content3
+    filelist <- getDirectoryContents path
+    let filelist2 = filter removeRelativeDirs filelist
+    let filelist3 = map (makePath path) filelist2
+    subnodes <- mapM createFileSystemNode filelist3
     let node = DirNode {
         path = path,
-        nodes = content4
+        nodes = subnodes
     }
     return node
 
@@ -38,7 +38,7 @@ createFileSystemNode path = do
         else createFileNode path
     return node
 
-getFileSize :: FilePath -> IO (Integer)
+getFileSize :: FilePath -> IO Integer
 getFileSize x = do
     handle <- openFile x ReadMode
     size <- hFileSize handle
@@ -59,16 +59,25 @@ getSize :: FileSystemNode -> Integer
 getSize (FileNode {size = x}) = x
 getSize (DirNode {nodes = x}) = sum $ map getSize x
 
--- print human readable filesizes. testing out guards.
---humanSize :: Integer -> String
---humanSize x
---    | x >= 1024 = (x / 1024) ++ " KB"
---    | otherwise = x  ++ " Bytes"
+humanSize :: (Fractional a, Ord a) => a -> [[Char]] -> [Char]
+humanSize x bases
+    | x >= 1024 = humanSize (x / 1024) (tail bases)
+    | otherwise = (show x) ++ " " ++ (head bases)
 
+nodeLength :: FileSystemNode -> Integer
+--nodeLength (DirNode {nodes = x}) = length nodes + 
+nodeLength x = 1
 
 main = do
     args <- getArgs
+    path <- if length args > 0
+                then canonicalizePath $ last args
+                else canonicalizePath "."
     --let dir = "/home/mark/Development/studium/haskell-filesizes/"
-    node <- createFileSystemNode $ last args
-    let dirsize = getSize node
+    node <- createFileSystemNode $ path
+    let size = fromInteger $ getSize node
+    --let dirsize = humanSize $ (getSize node) 2 ["", "kb", "mb", "gb", "tb"]
+    let dirsize = humanSize size ["Bytes", "Kb", "Mb", "Gb", "Tb"]
+    let l = nodeLength node
     print dirsize
+    print l
