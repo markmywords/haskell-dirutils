@@ -4,9 +4,11 @@ import System.IO
 import System.Environment (getArgs)
 import System.Directory (getDirectoryContents, doesDirectoryExist, canonicalizePath)
 import System.FilePath ((</>))
+import System.Posix.Types
+import System.Posix.Files
 
 
-data FileSystemNode = DirNode {path :: FilePath, nodes :: [FileSystemNode] } | FileNode {path :: FilePath, size :: Integer} deriving (Show)
+data FileSystemNode = DirNode {path :: FilePath, nodes :: [FileSystemNode] } | FileNode {path :: FilePath, size :: FileOffset} deriving (Show)
 
 
 createFileNode :: FilePath -> IO FileSystemNode
@@ -38,12 +40,20 @@ createFileSystemNode path = do
         else createFileNode path
     return node
 
-getFileSize :: FilePath -> IO Integer
-getFileSize x = do
-    handle <- openFile x ReadMode
-    size <- hFileSize handle
-    hClose handle
-    return size
+-- old implementation. to be removed
+--getFileSize :: FilePath -> IO Integer
+--getFileSize x = do
+--    handle <- openFile x ReadMode
+--    size <- hFileSize handle
+--    hClose handle
+--    return size
+
+
+getFileSize :: String -> IO FileOffset
+getFileSize path = do
+    stat <- getFileStatus path
+    return (fileSize stat)
+
 
 removeRelativeDirs :: String -> Bool
 removeRelativeDirs x 
@@ -55,7 +65,7 @@ makePath :: String -> FilePath -> FilePath
 makePath x y = x </> y
 
 -- calculating size of directory or file
-getSize :: FileSystemNode -> Integer
+getSize :: FileSystemNode -> FileOffset
 getSize (FileNode {size = x}) = x
 getSize (DirNode {nodes = x}) = sum $ map getSize x
 
@@ -75,7 +85,7 @@ main = do
                 else canonicalizePath "."
     --let dir = "/home/mark/Development/studium/haskell-filesizes/"
     node <- createFileSystemNode $ path
-    let size = fromInteger $ getSize node
+    let size = fromIntegral $ getSize node
     --let dirsize = humanSize $ (getSize node) 2 ["", "kb", "mb", "gb", "tb"]
     let dirsize = humanSize size ["Bytes", "Kb", "Mb", "Gb", "Tb"]
     let l = nodeLength node
