@@ -40,20 +40,10 @@ createFileSystemNode path = do
         else createFileNode path
     return node
 
--- old implementation. to be removed
---getFileSize :: FilePath -> IO Integer
---getFileSize x = do
---    handle <- openFile x ReadMode
---    size <- hFileSize handle
---    hClose handle
---    return size
-
-
 getFileSize :: String -> IO FileOffset
 getFileSize path = do
     stat <- getFileStatus path
     return (fileSize stat)
-
 
 removeRelativeDirs :: String -> Bool
 removeRelativeDirs x 
@@ -69,25 +59,20 @@ getSize :: FileSystemNode -> FileOffset
 getSize (FileNode {size = x}) = x
 getSize (DirNode {nodes = x}) = sum $ map getSize x
 
+
+-- human readable file size
 humanSize :: (Fractional a, Ord a) => a -> [[Char]] -> [Char]
 humanSize x bases
     | x >= 1024 = humanSize (x / 1024) (tail bases)
     | otherwise = (show x) ++ " " ++ (head bases)
 
-nodeLength :: FileSystemNode -> Integer
---nodeLength (DirNode {nodes = x}) = length nodes + 
-nodeLength x = 1
 
 main = do
     args <- getArgs
     path <- if length args > 0
                 then canonicalizePath $ last args
                 else canonicalizePath "."
-    --let dir = "/home/mark/Development/studium/haskell-filesizes/"
     node <- createFileSystemNode $ path
     let size = fromIntegral $ getSize node
-    --let dirsize = humanSize $ (getSize node) 2 ["", "kb", "mb", "gb", "tb"]
-    let dirsize = humanSize size ["Bytes", "Kb", "Mb", "Gb", "Tb"]
-    let l = nodeLength node
-    print dirsize
-    print l
+    --let dirsize = humanSize size ["Bytes", "Kb", "Mb", "Gb", "Tb"] 
+    print size
